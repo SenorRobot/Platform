@@ -42,8 +42,10 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 	printk(" idVendor:  %04X\n", interface_to_usbdev(intf)->descriptor.idVendor);
 	printk(" idProduct: %04X\n", interface_to_usbdev(intf)->descriptor.idProduct);
 	printk(" minor:     %04X\n", intf->minor);
+	printk(" interface: %04X\n", intf->cur_altsetting->desc.bInterfaceNumber);
 	if (interface_to_usbdev(intf)->descriptor.idVendor == USB_ID_VENDOR &&
-	    interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT)
+	    interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT &&
+	    intf->cur_altsetting->desc.bInterfaceNumber == USB_INTERFACE_ID)
 	{
 		try_module_get(THIS_MODULE);
 		printk("CONNECTED\n");
