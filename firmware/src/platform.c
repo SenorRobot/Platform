@@ -6,6 +6,8 @@
 
 #include "descriptors.h"
 
+#define RECV_MSG_LEN 2
+
 
 USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface = {
 	.Config = {
@@ -25,8 +27,10 @@ USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface = {
 	},
 };
 
-//static FILE USBSerialStream;
+static FILE USBSerialStream;
 
+unsigned char motor_set_l = 0;
+unsigned char motor_set_r = 0;
 
 void SetupHardware(void) {
 	/* Disable watchdog if enabled by bootloader/fuses */
@@ -40,6 +44,18 @@ void SetupHardware(void) {
 	LEDs_Init();
 	USB_Init();
 
+	/* PWM */
+	TCCR0B  = (1 << CS00);
+	TCCR0A |= (1 << WGM01) | (1 << WGM00) | (1 << COM0A1);
+	OCR0A   = 0;
+	TCCR1B  = (1 << CS00);
+	TCCR1A |= (1 << WGM01) | (1 << WGM00) | (1 << COM0A1);
+	OCR1A   = 0;
+
+	/* IO */
+	TCCR3A  |= (1 << COM1A0) | (1 << COM1B0);
+	DDRB    |= (1 << PB5) | (1 << PB6);
+
 	/* Timer Initialization
 	OCR0A  = 100;
 	TCCR0A = (1 << WGM01);
@@ -50,12 +66,19 @@ void SetupHardware(void) {
 int main() {
 	SetupHardware();
 
-	//CDC_Device_CreateBlockingStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
+	CDC_Device_CreateBlockingStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
 
 	sei();
 
 	while (1) {
-		//fgetc(&USBSerialStream);
+		char msg[RECV_MSG_LEN];
+		fgets(msg, RECV_MSG_LEN, &USBSerialStream);
+
+		motor_set_l = msg[0];
+		motor_set_r = msg[1];
+
+		OCR0A = motor_set_l;
+		OCR1A = motor_set_r;
 
 		CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
 		USB_USBTask();
