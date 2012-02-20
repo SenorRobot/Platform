@@ -45,22 +45,14 @@ void SetupHardware(void) {
 	USB_Init();
 
 	/* PWM */
-	TCCR0B  = (1 << CS00);
-	TCCR0A |= (1 << WGM01) | (1 << WGM00) | (1 << COM0A1);
-	OCR0A   = 0;
-	TCCR1B  = (1 << CS00);
-	TCCR1A |= (1 << WGM01) | (1 << WGM00) | (1 << COM0A1);
-	OCR1A   = 0;
+	TCCR0A = (1 << WGM01) | (1 << WGM00) | (1 << COM0A1) | (1 << COM0B1);
+	TCCR0B = (1 << CS01);
+	OCR0A  = 0;
+	OCR0B  = 0;
 
 	/* IO */
-	TCCR3A  |= (1 << COM1A0) | (1 << COM1B0);
-	DDRB    |= (1 << PB5) | (1 << PB6);
-
-	/* Timer Initialization
-	OCR0A  = 100;
-	TCCR0A = (1 << WGM01);
-	TCCR0B = (1 << CS00);
-	TIMSK0 = (1 << OCIE0A);*/
+	DDRB |= (1 << PB7);
+	DDRD |= (1 << PD0);
 }
 
 int main() {
