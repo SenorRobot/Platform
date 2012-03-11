@@ -9,7 +9,7 @@ ssize_t motor_store_ ## val (struct device *dev, struct device_attribute *attr, 
 	struct platform *robot = usb_get_intfdata(intf);                                                               \
 	robot->motor_ ## val ## _out = *buf;                                                                           \
 	motor_store(dev, attr, robot);                                                                                 \
-	return 1;                                                                                                      \
+	return count;                                                                                                  \
 }                                                                                                                  \
 ssize_t motor_show_ ## val (struct device *dev, struct device_attribute *attr, char *buf) {                        \
 	struct usb_interface *intf = to_usb_interface(dev);                                                            \
@@ -27,8 +27,8 @@ static struct usb_device_id id_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-DEVICE_ATTR(motor_l, 0x0644, motor_show_l, motor_store_l);
-DEVICE_ATTR(motor_r, 0x0644, motor_show_r, motor_store_r);
+DEVICE_ATTR(motor_l, 666, motor_show_l, motor_store_l);
+DEVICE_ATTR(motor_r, 666, motor_show_r, motor_store_r);
 
 static struct usb_driver driver_info = {
 	.name = "SenorRobot",
@@ -71,7 +71,7 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 	printk(" interface: %04X\n", intf->cur_altsetting->desc.bInterfaceNumber);
 	if (interface_to_usbdev(intf)->descriptor.idVendor == USB_ID_VENDOR &&
 	    interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT &&
-	    intf->cur_altsetting->desc.bInterfaceNumber == USB_INTERFACE_ID)
+	    intf->cur_altsetting->desc.bInterfaceNumber == USB_DATA_INTERFACE_ID)
 	{
 		try_module_get(THIS_MODULE);
 		printk("CONNECTED\n");
@@ -89,6 +89,12 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 		usb_set_intfdata(intf, robot);
 
 		return 0;
+	} else if (interface_to_usbdev(intf)->descriptor.idVendor == USB_ID_VENDOR &&
+	           interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT &&
+	           intf->cur_altsetting->desc.bInterfaceNumber == USB_CTRL_INTERFACE_ID)
+	{
+		// Eat the control interface
+		return 0;
 	}
 	printk("NOT RECOGNIZED\n");
 
@@ -101,34 +107,50 @@ void usb_disconnect(struct usb_interface *intf) {
 	sleep_on(&context->remove_ok);
 	free_driver_resources(context);*/
 
-	device_remove_file(&intf->dev, &dev_attr_motor_l);
-	device_remove_file(&intf->dev, &dev_attr_motor_r);
+	if (interface_to_usbdev(intf)->descriptor.idVendor == USB_ID_VENDOR &&
+	    interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT &&
+	    intf->cur_altsetting->desc.bInterfaceNumber == USB_DATA_INTERFACE_ID)
+	{
+		device_remove_file(&intf->dev, &dev_attr_motor_l);
+		device_remove_file(&intf->dev, &dev_attr_motor_r);
 
-	kfree(usb_get_intfdata(intf));
+		kfree(usb_get_intfdata(intf));
 
-	printk("DISCONNECTED\n");
-	module_put(THIS_MODULE);
+		printk("DISCONNECTED\n");
+		module_put(THIS_MODULE);
+	}
 }
 
+void urb_complete(struct urb *urb) {
+	printk(KERN_ERR "Urb status: %d", urb->status);
+	kfree(urb->context);
+	usb_free_urb(urb);
+}
 
 size_t motor_store(struct device *dev, struct device_attribute *attr, struct platform *robot) {
-	struct urb request;
+	struct urb *request;
 	int result;
 
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_device *usbdev = interface_to_usbdev(intf);
-	char buf[2] = { robot->motor_l_out, robot->motor_r_out };
-	usb_fill_bulk_urb(&request, usbdev, usb_sndbulkpipe(usbdev, 1), buf, 2, NULL, NULL);
 
-	result = usb_submit_urb(&request, 0);
+	char *buf = kmalloc(sizeof(char) * 3, GFP_KERNEL);
+	buf[0] = robot->motor_l_out;
+	buf[1] = robot->motor_r_out;
+	buf[2] = '\0';
+
+	request = usb_alloc_urb(0, GFP_KERNEL);
+	usb_fill_bulk_urb(request, usbdev, usb_sndbulkpipe(usbdev, 0x04), buf, 3, &urb_complete, buf);
+
+	result = usb_submit_urb(request, GFP_KERNEL);
 	if (result) {
-		// Doesn't show up
-		printk("Error writing urb (%d)", result);
-		return -1;
+		printk(KERN_ERR "Error writing urb (%d)", result);
+		result = -1;
 	} else {
-		printk("Wrote 0x%02X%02X to device", buf[0], buf[1]);
+		printk(KERN_ERR "Wrote 0x%02X%02X to device", buf[0], buf[1]);
+		result = 2;
 	}
-	return 2;
+	return result;
 }
 
 /*int usb_ioctl(struct usb_device *dev, unsigned int code, void *buf) {
