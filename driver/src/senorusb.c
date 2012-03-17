@@ -69,9 +69,9 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 	printk(" idProduct: %04X\n", interface_to_usbdev(intf)->descriptor.idProduct);
 	printk(" minor:     %04X\n", intf->minor);
 	printk(" interface: %04X\n", intf->cur_altsetting->desc.bInterfaceNumber);
+
 	if (interface_to_usbdev(intf)->descriptor.idVendor == USB_ID_VENDOR &&
-	    interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT &&
-	    intf->cur_altsetting->desc.bInterfaceNumber == USB_DATA_INTERFACE_ID)
+	    interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT)
 	{
 		try_module_get(THIS_MODULE);
 		printk("CONNECTED\n");
@@ -89,12 +89,6 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 		usb_set_intfdata(intf, robot);
 
 		return 0;
-	} else if (interface_to_usbdev(intf)->descriptor.idVendor == USB_ID_VENDOR &&
-	           interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT &&
-	           intf->cur_altsetting->desc.bInterfaceNumber == USB_CTRL_INTERFACE_ID)
-	{
-		// Eat the control interface
-		return 0;
 	}
 	printk("NOT RECOGNIZED\n");
 
@@ -108,8 +102,7 @@ void usb_disconnect(struct usb_interface *intf) {
 	free_driver_resources(context);*/
 
 	if (interface_to_usbdev(intf)->descriptor.idVendor == USB_ID_VENDOR &&
-	    interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT &&
-	    intf->cur_altsetting->desc.bInterfaceNumber == USB_DATA_INTERFACE_ID)
+	    interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT)
 	{
 		device_remove_file(&intf->dev, &dev_attr_motor_l);
 		device_remove_file(&intf->dev, &dev_attr_motor_r);
@@ -134,13 +127,12 @@ size_t motor_store(struct device *dev, struct device_attribute *attr, struct pla
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_device *usbdev = interface_to_usbdev(intf);
 
-	char *buf = kmalloc(sizeof(char) * 3, GFP_KERNEL);
+	char *buf = kmalloc(sizeof(char) * 2, GFP_KERNEL);
 	buf[0] = robot->motor_l_out;
 	buf[1] = robot->motor_r_out;
-	buf[2] = '\0';
 
 	request = usb_alloc_urb(0, GFP_KERNEL);
-	usb_fill_bulk_urb(request, usbdev, usb_sndbulkpipe(usbdev, 0x04), buf, 3, &urb_complete, buf);
+	usb_fill_bulk_urb(request, usbdev, usb_sndbulkpipe(usbdev, 0x02), buf, 2, &urb_complete, buf);
 
 	result = usb_submit_urb(request, GFP_KERNEL);
 	if (result) {

@@ -3,8 +3,6 @@
 
 #include <linux/usb.h>
 
-#define USB_CTRL_INTERFACE_ID 0x0000
-#define USB_DATA_INTERFACE_ID 0x0001
 #define USB_ID_VENDOR    0x03EB
 #define USB_ID_PRODUCT   0x0506
 
