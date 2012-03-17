@@ -7,26 +7,8 @@
 #include "descriptors.h"
 
 
-USB_ClassInfo_CDC_Device_t VirtualSerial_CDC_Interface = {
-	.Config = {
-		.ControlInterfaceNumber         = 0,
-
-		.DataINEndpointNumber           = CDC_TX_EPNUM,
-		.DataINEndpointSize             = CDC_TXRX_EPSIZE,
-		.DataINEndpointDoubleBank       = false,
-
-		.DataOUTEndpointNumber          = CDC_RX_EPNUM,
-		.DataOUTEndpointSize            = CDC_TXRX_EPSIZE,
-		.DataOUTEndpointDoubleBank      = false,
-
-		.NotificationEndpointNumber     = CDC_NOTIFICATION_EPNUM,
-		.NotificationEndpointSize       = CDC_NOTIFICATION_EPSIZE,
-		.NotificationEndpointDoubleBank = false,
-	},
-};
-
-//static FILE USBSerialStream;
-
+unsigned char motor_set_l = 0;
+unsigned char motor_set_r = 0;
 
 void SetupHardware(void) {
 	/* Disable watchdog if enabled by bootloader/fuses */
@@ -36,28 +18,34 @@ void SetupHardware(void) {
 	/* Disable clock division */
 	clock_prescale_set(clock_div_1);
 
+	/* PWM */
+	TCCR0A = (1 << WGM01) | (1 << WGM00) | (1 << COM0A1) | (1 << COM0B1);
+	TCCR0B = (1 << CS01);
+	OCR0A  = motor_set_l;
+	OCR0B  = motor_set_r;
+
+	/* IO */
+	DDRB |= (1 << PB7);
+	DDRD |= (1 << PD0);
+
 	/* Hardware Initialization */
 	LEDs_Init();
 	USB_Init();
-
-	/* Timer Initialization
-	OCR0A  = 100;
-	TCCR0A = (1 << WGM01);
-	TCCR0B = (1 << CS00);
-	TIMSK0 = (1 << OCIE0A);*/
 }
 
 int main() {
 	SetupHardware();
 
-	//CDC_Device_CreateBlockingStream(&VirtualSerial_CDC_Interface, &USBSerialStream);
-
 	sei();
 
 	while (1) {
-		//fgetc(&USBSerialStream);
+		Endpoint_SelectEndpoint(OUT_EPNUM);
+		if (Endpoint_IsOUTReceived()) {
+			OCR0A = Endpoint_Read_8();
+			OCR0B = Endpoint_Read_8();
+			Endpoint_ClearOUT();
+		}
 
-		CDC_Device_USBTask(&VirtualSerial_CDC_Interface);
 		USB_USBTask();
 	}
 }
@@ -65,12 +53,12 @@ int main() {
 /** Event handler for the library USB Configuration Changed event. */
 void EVENT_USB_Device_ConfigurationChanged(void)
 {
-	CDC_Device_ConfigureEndpoints(&VirtualSerial_CDC_Interface);
+	Endpoint_ConfigureEndpoint(IN_EPNUM, EP_TYPE_INTERRUPT, ENDPOINT_DIR_IN, IN_EPSIZE, ENDPOINT_BANK_SINGLE);
+	Endpoint_ConfigureEndpoint(OUT_EPNUM, EP_TYPE_BULK, ENDPOINT_DIR_OUT, OUT_EPSIZE, ENDPOINT_BANK_SINGLE);
 }
 
 /** Event handler for the library USB Control Request reception event. */
 void EVENT_USB_Device_ControlRequest(void)
 {
-	CDC_Device_ProcessControlRequest(&VirtualSerial_CDC_Interface);
 }
 
