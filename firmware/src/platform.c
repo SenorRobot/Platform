@@ -6,6 +6,7 @@
 
 #include "descriptors.h"
 
+#include "motor.h"
 
 unsigned char motor_set_l = 0;
 unsigned char motor_set_r = 0;
@@ -17,16 +18,18 @@ void SetupHardware(void) {
 
 	/* Disable clock division */
 	clock_prescale_set(clock_div_1);
-
+	
 	/* PWM */
+	/*
 	TCCR0A = (1 << WGM01) | (1 << WGM00) | (1 << COM0A1) | (1 << COM0B1);
 	TCCR0B = (1 << CS01);
 	OCR0A  = motor_set_l;
 	OCR0B  = motor_set_r;
-
+	*/
 	/* IO */
+	/*
 	DDRB |= (1 << PB7);
-	DDRD |= (1 << PD0);
+	DDRD |= (1 << PD0);*/
 
 	/* Hardware Initialization */
 	LEDs_Init();
@@ -35,14 +38,21 @@ void SetupHardware(void) {
 
 int main() {
 	SetupHardware();
+	motor_t motorL;	
+	motor_t motorR;
+
+	init_motor(&motorL, &PORTF, 6, 7, 0); //pwm0 
+	init_motor(&motorR, &PORTD, 2, 3, 1); //pwm1
 
 	sei();
 
 	while (1) {
 		Endpoint_SelectEndpoint(OUT_EPNUM);
 		if (Endpoint_IsOUTReceived()) {
-			OCR0A = Endpoint_Read_8();
-			OCR0B = Endpoint_Read_8();
+			motor_setSpeed(&motorL, Endpoint_Read_8());
+			motor_setSpeed(&motorR, Endpoint_Read_8());
+			//OCR0A = Endpoint_Read_8();
+			//OCR0B = Endpoint_Read_8();
 			Endpoint_ClearOUT();
 		}
 

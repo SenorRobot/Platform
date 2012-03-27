@@ -48,6 +48,11 @@ include $(LUFA_PATH)/LUFA/makefile
 
 SRC = $(SRC_DIR)/$(TARGET).c          \
       $(SRC_DIR)/descriptors.c        \
+      $(SRC_DIR)/motor.c	      \
+      $(SRC_DIR)/pwm.c		      \
+      $(SRC_DIR)/iodefs.c	      \
+      $(SRC_DIR)/gyro.c		      \
+      $(SRC_DIR)/spi.c		      \
       $(LUFA_SRC_USB)                 \
       $(LUFA_SRC_USBCLASS)
 
