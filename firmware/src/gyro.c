@@ -3,141 +3,119 @@
 #include <util/delay.h>
 #include <stdio.h>
 
-
 #include "gyro.h"
 #include "spi.h"
 
+#define LOW_ADDRESS   0x0E
+#define HIGH_ADDRESS  0x38
+#define FLAG_WRITE   (0 << 7)
+#define FLAG_READ    (1 << 7)
+#define FLAG_INC_PTR (1 << 6)
 
+bool gyro_write(char* buffer, unsigned char address, int length);
+bool gyro_writec(unsigned char address, char tx);
+char gyro_readc(unsigned char address);
+bool gyro_read(char* buffer, unsigned char address, int length);
 
 //write to multiple registers on the device.
-int L3G4200D_write(char* buffer, unsigned char address, int length){
+bool gyro_write(char* buffer, unsigned char address, int length) {
+	if (address < LOW_ADDRESS || address > HIGH_ADDRESS)   //check that the address is in range
+		return false;
 
 	SS_ON;
-	unsigned char address_byte=(0<<7); //specify that we are writing	
 
-	if (address < 0x0E || address > 0x38){//check that the address is in range
-		return -1;
-	} 
-	if (length > 1){
-		address_byte |= (1<<6); //specify to advance the pointer
-	}
-	address_byte += address;
-	SPI_MasterTransmit(address_byte);
-
-	for (int i=0;i<length;i++){
-		SPI_MasterTransmit(buffer[i]);
-	}	
+	spi_master_transmit(address | FLAG_WRITE | FLAG_INC_PTR);
+	for (int i = 0; i < length; i++)
+		spi_master_transmit(buffer[i]);
 
 	SS_OFF;
-	return length;
+
+	return true;
 }
 
 //write to one register on the device
-int L3G4200D_writec(unsigned char address, char tx){
+bool gyro_writec(unsigned char address, char tx) {
+	if (address < LOW_ADDRESS || address > HIGH_ADDRESS)   //check that the address is in range
+		return false;
+
 	SS_ON;
-	unsigned char address_byte=(0<<7); //specify that we are writing	
 
-	if (address < 0x0E || address > 0x38){//check that the address is in range
-		SS_OFF;
-		return 0;
-	} 
-	address_byte += address;
-	SPI_MasterTransmit(address_byte);
+	spi_master_transmit(address | FLAG_WRITE);
+	spi_master_transmit(tx);
 
-	SPI_MasterTransmit(tx);
 	SS_OFF;
-	return 1;	
 
+	return true;
 }
+
 //initialize the device
-int L3G4200D_init(void ){
+bool gyro_init() {
 	//check the device id
-	if (L3G4200D_readc(0x0F) != 0xD3) return 0;
+	if (gyro_readc(0x0F) != 0xD3)
+		return false;
 
 	//initialize device with all axes reporting at 800hz, low-pass @ 35 hz)
-	if (!L3G4200D_writec(0x20,0b00011111)) return 0;
+	if (!gyro_writec(0x20, 0b00011111))
+		return false;
 
 	//low pass at 30Hz
-	if (!L3G4200D_writec(0x21,0b00000001)) return 0;
+	if (!gyro_writec(0x21, 0b00000001))
+		return false;
 
-	return 1;
+	return true;
 }
 //read one register from the device
-char L3G4200D_readc( unsigned char address){
-	SS_ON;
-	unsigned char address_byte=(1<<7); //specify that we are reading	
-
-	if (address < 0x0E || address > 0x38){
+char gyro_readc(unsigned char address) {
+	if (address < LOW_ADDRESS || address > HIGH_ADDRESS)
 		return -1;
-	} 
 
-	address_byte += address;	
-	SPI_MasterTransmit(address_byte);
+	SS_ON;
 
-	char ret= SPI_MasterTransmit(0xFF); //doesn't matter what we transmit
+	spi_master_transmit(address | FLAG_READ);
+	char ret = spi_master_transmit(0x00);      //doesn't matter what we transmit
+
 	SS_OFF;
-	return ret;
 
+	return ret;
 }
+
 //read multiple registers from the device
-int L3G4200D_read(char* buffer, unsigned char address, int length){
+bool gyro_read(char* buffer, unsigned char address, int length) {
+	if (address < LOW_ADDRESS || address > HIGH_ADDRESS)
+		return false;
 
 	SS_ON;
 
-	unsigned char address_byte=(1<<7); //specify that we are reading	
-
-	if (address < 0x0E || address > 0x38){
-		return -1;
-	} 
-
-	if (length > 1){
-		address_byte |= (1<<6); //specify to advance the pointer
-	}
-	address_byte += address;	
-	SPI_MasterTransmit(address_byte);
-
-	for (int i=0;i<length;i++){
-		buffer[i]=SPI_MasterTransmit(0x00); //doesn't matter what we transmit
-	}	
+	spi_master_transmit(address | FLAG_READ | FLAG_INC_PTR);
+	for (int i = 0; i < length; i++)
+		buffer[i] = spi_master_transmit(0x00);   //doesn't matter what we transmit
 
 	SS_OFF;
-	return length;
 
+	return true;
 }
+
 //get the x axis count
-int L3G4200D_getX(void){
-	char buf [2];
-	L3G4200D_read(buf, 0x28, 2); //read the two bytes into buf;
+int gyro_getx() {
+	char buf[2];
+	gyro_read(buf, 0x28, 2);              //read the two bytes into buf;
 
-	int ret=buf[0];
-	ret += buf[1] << 8;
-
-	return ret;
-
-
+	return (buf[0] | buf[1] << 8);
 }
+
 //get the y axis count
-int L3G4200D_getY(void){
+int gyro_gety() {
+	char buf[2];
+	gyro_read(buf, 0x2A, 2);              //read the two bytes into buf;
 
-	char buf [2];
-	L3G4200D_read(buf, 0x2A, 2); //read the two bytes into buf;
-
-	int ret=buf[0];
-	ret += buf[1] << 8;
-
-	return ret;
+	return (buf[0] | buf[1] << 8);
 }
 
 //get the z axis count
-int L3G4200D_getZ(void){
-	char buf [2];
-	L3G4200D_read(buf, 0x2C, 2); //read the two bytes into buf;
+int gyro_getz() {
+	char buf[2];
+	gyro_read(buf, 0x2C, 2);              //read the two bytes into buf;
 
-	int ret=buf[0];
-	ret += buf[1] << 8;
-
-	return ret;
+	return (buf[0] | buf[1] << 8);
 }
-
-
 

@@ -3,21 +3,19 @@
  *
  *  Created on: Feb 24, 2012
  *      Author: aah9038
+ *      Author: Alex Crawford
  */
 
 #ifndef PWM_H
 #define PMW_H
 
 #include <stdint.h>
-#include <avr/io.h>
-#include "iodefs.h"
+#include <stdbool.h>
 
-typedef struct{
-	volatile uint8_t* cnt_port;	//output compare pointer
-}pwm_args;
+struct _pwm_args_t;
+typedef struct _pwm_args_t pwm_args_t;
 
-void pwm_init(pwm_args* pwmin, char pin);
-
-void pwm_setDuty(pwm_args* pwmin, unsigned char compare);
+void pwm_init(pwm_args_t *pwmin, bool pin);
+void pwm_set_duty(pwm_args_t *pwmin, unsigned char compare);
 
 #endif /* PWM_H */
