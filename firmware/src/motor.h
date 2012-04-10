@@ -28,6 +28,6 @@ typedef struct _motor_t motor_t;
 
 void motor_set_speed(motor_t *motor, int8_t speed);
 void motor_set_mode(motor_t *motor, motor_mode_t mode);
-void motor_init(motor_t *motor, volatile uint8_t *port, char output_1_pin, char output_2_pin, bool pwmPin);
+void motor_init(motor_t **motor, volatile uint8_t *port, char output_1_pin, char output_2_pin, bool pwmPin);
 
 #endif /* MOTOR_H_ */

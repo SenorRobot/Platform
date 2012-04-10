@@ -10,7 +10,7 @@
 #include <math.h>
 #include "iodefs.h"
 #include "motor.h"
-//#include "pwm.h"
+#include "pwm.h"
 
 struct _motor_t {
 	volatile uint8_t *cnt_port;   //motor control output port
@@ -58,16 +58,20 @@ void motor_set_mode(motor_t* motor, motor_mode_t mode) {
  *
  * mode=coast,forward,backward,brake
  */
-void motor_init(motor_t *motor, volatile uint8_t *port, char output_1_pin, char output_2_pin, bool pwm_pin) {
-	motor->cnt_port = port;
+void motor_init(motor_t **motor, volatile uint8_t *port, char output_1_pin, char output_2_pin, bool pwm_pin) {
+	motor_t *tmotor = malloc(sizeof(motor_t));
 
-	motor->output_1_pin = output_1_pin;
-	motor->output_2_pin = output_2_pin;
+	tmotor->cnt_port = port;
+
+	tmotor->output_1_pin = output_1_pin;
+	tmotor->output_2_pin = output_2_pin;
 
 	*GET_DDR(port) |= (1 << output_1_pin);
 	*GET_DDR(port) |= (1 << output_2_pin);
 
-	motor_set_mode(motor, MOTOR_MODE_BRAKE);
-	pwm_init(motor->pwm, pwm_pin);
+	motor_set_mode(tmotor, MOTOR_MODE_BRAKE);
+	pwm_init(&tmotor->pwm, pwm_pin);
+
+	*motor = tmotor;
 }
 

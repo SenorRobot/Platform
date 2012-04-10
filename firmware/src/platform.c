@@ -16,8 +16,8 @@ int main() {
 
 	setup_hardware();
 
-	motor_init(motor_l, &PORTF, 6, 7, false);
-	motor_init(motor_r, &PORTD, 2, 3, true);
+	motor_init(&motor_l, &PORTF, 6, 7, false);
+	motor_init(&motor_r, &PORTD, 2, 3, true);
 
 	sei();
 
