@@ -8,12 +8,12 @@
 #include <avr/io.h>
 #include "spi.h"
 
-void SPI_Init(void) {
+void spi_init() {
 	UBRR1 = 0;
 
 	// Setting the XCKn port pin as output, enables master mode. B1
 	DDRB |= (1 << MOSI) | (1 << SCK);
-	DDRC |= (1 << SS);
+	DDRB |= (1 << SS);
 
 	DDRB &= ~(2 << MISO);   //miso as input
 	SS_OFF;
