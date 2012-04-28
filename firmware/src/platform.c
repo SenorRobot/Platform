@@ -10,15 +10,15 @@
 #include "gyro.h"
 
 #define WRITE_RATE 10
-#define GYRO_READ_RATE 800
-#define GYRO_SCALE 13.315805450396191230191  // 1/10000 of a rad
+#define GYRO_READ_RATE 100
+#define GYRO_SCALE 1.332  // 1/1000 of a rad
 #define GYRO_CAL_Z 55
 
 void setup_hardware();
 volatile bool send_readings;
-volatile int16_t acc_x;
-volatile int16_t acc_y;
-volatile int16_t acc_z;
+volatile int32_t acc_x;
+volatile int32_t acc_y;
+volatile int32_t acc_z;
 
 int main() {
 	motor_t *motor_l = NULL;
@@ -49,9 +49,9 @@ int main() {
 		if (send_readings) {
 			Endpoint_SelectEndpoint(IN_EPNUM);
 			send_readings = false;
-			Endpoint_Write_16_LE(acc_x);
-			Endpoint_Write_16_LE(acc_y);
-			Endpoint_Write_16_LE(acc_z);
+			Endpoint_Write_32_LE(acc_x);
+			Endpoint_Write_32_LE(acc_y);
+			Endpoint_Write_32_LE(acc_z);
 			Endpoint_ClearIN();
 		}
 		USB_USBTask();

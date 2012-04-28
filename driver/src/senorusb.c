@@ -142,7 +142,7 @@ void gyro_callback(struct urb *urb) {
 		//struct usb_interface *intf = to_usb_interface(dev);
 		//struct platform *robot = usb_get_intfdata(intf);
 		//((char *)urb->transfer_buffer)[urb->actual_length] = '\0';
-		int16_t *gyro = urb->transfer_buffer;
+		int32_t *gyro = urb->transfer_buffer;
 
 		printk(KERN_ERR "gyro urb (X:%d  Y:%d  Z:%d)\n", gyro[0], gyro[1], gyro[2]);
 	} else {

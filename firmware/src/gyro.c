@@ -54,8 +54,8 @@ bool gyro_init() {
 	if (gyro_readc(0x0F) != 0xD3)
 		return false;
 
-	//initialize device with z axis reporting at 800hz, low-pass @ 30 hz)
-	if (!gyro_writec(0x20, 0b11001100))
+	//initialize device with z axis reporting at 100hz, low-pass @ 25 hz)
+	if (!gyro_writec(0x20, 0b00111100))
 		return false;
 
 	//high pass at 4Hz
