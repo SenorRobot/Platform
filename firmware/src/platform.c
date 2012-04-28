@@ -9,9 +9,10 @@
 #include "spi.h"
 #include "gyro.h"
 
-#define WRITE_RATE 1
-#define GYRO_READ_RATE 200
+#define WRITE_RATE 10
+#define GYRO_READ_RATE 800
 #define GYRO_SCALE 13.315805450396191230191  // 1/10000 of a rad
+#define GYRO_CAL_Z 55
 
 void setup_hardware();
 volatile bool send_readings;
@@ -89,9 +90,9 @@ ISR(TIMER1_COMPA_vect, ISR_BLOCK) {
 }
 
 ISR(TIMER3_COMPA_vect, ISR_BLOCK) {
-	acc_x = GYRO_SCALE*gyro_getx()/GYRO_READ_RATE;
-	acc_y = GYRO_SCALE*gyro_gety()/GYRO_READ_RATE;
-	acc_z = GYRO_SCALE*gyro_getz()/GYRO_READ_RATE;
+	//acc_x += GYRO_SCALE*gyro_getx()/GYRO_READ_RATE;
+	//acc_y += GYRO_SCALE*gyro_gety()/GYRO_READ_RATE;
+	acc_z += GYRO_SCALE*(gyro_getz() - GYRO_CAL_Z)/GYRO_READ_RATE;
 }
 
 /** Event handler for the library USB Configuration Changed event. */
