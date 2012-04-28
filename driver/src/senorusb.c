@@ -22,6 +22,20 @@ ssize_t motor_show_ ## val (struct device *dev, struct device_attribute *attr, c
 	return scnprintf(buf, PAGE_SIZE, "%d", robot->motor_ ## val ## _out);                                          \
 }
 
+struct platform {
+	uint8_t motor_l_out;
+	uint8_t motor_r_out;
+	uint8_t *gyro_buffer;
+	int32_t gyro_x;
+	int32_t gyro_y;
+	int32_t gyro_z;
+};
+
+void gyro_callback(struct urb *urb);
+int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table);
+void usb_disconnect(struct usb_interface *intf);
+size_t motor_store(struct device *dev, struct device_attribute *attr, struct platform *robot);
+ssize_t gyro_show_yaw(struct device *dev, struct device_attribute *attr, char *buf);
 
 MOTOR_SHOW_STORE(l);
 MOTOR_SHOW_STORE(r);
@@ -34,7 +48,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 DEVICE_ATTR(motor_l, S_IRUSR | S_IWUSR, motor_show_l, motor_store_l);
 DEVICE_ATTR(motor_r, S_IRUSR | S_IWUSR, motor_show_r, motor_store_r);
-//DEVICE_ATTR(gyro_yaw, S_IRUSR | S_IWUSR, gyro_show_yaw, NULL);
+DEVICE_ATTR(gyro_show_yaw, S_IRUSR | S_IWUSR, gyro_show_yaw, NULL);
 
 static struct usb_driver driver_info = {
 	.name = "SenorRobot",
@@ -139,12 +153,14 @@ void usb_disconnect(struct usb_interface *intf) {
 void gyro_callback(struct urb *urb) {
 	int result;
 	if (urb->status == 0) {
-		//struct usb_interface *intf = to_usb_interface(dev);
-		//struct platform *robot = usb_get_intfdata(intf);
-		//((char *)urb->transfer_buffer)[urb->actual_length] = '\0';
-		int32_t *gyro = urb->transfer_buffer;
+		if (urb->actual_length > 3*sizeof(int32_t)) {
+			int32_t *gyro = urb->transfer_buffer;
 
-		printk(KERN_ERR "gyro urb (X:%d  Y:%d  Z:%d)\n", gyro[0], gyro[1], gyro[2]);
+			struct platform *robot = urb->context;
+			robot->gyro_x = gyro[0];
+			robot->gyro_y = gyro[1];
+			robot->gyro_z = gyro[2];
+		}
 	} else {
 		printk(KERN_ERR "Urb failed with: %d", urb->status);
 	}
@@ -188,7 +204,9 @@ size_t motor_store(struct device *dev, struct device_attribute *attr, struct pla
 	return result;
 }
 
-/*int usb_ioctl(struct usb_device *dev, unsigned int code, void *buf) {
-
-}*/
+ssize_t gyro_show_yaw(struct device *dev, struct device_attribute *attr, char *buf) {
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct platform *robot = usb_get_intfdata(intf);
+	return scnprintf(buf, PAGE_SIZE, "%d", robot->gyro_z);
+}
 
