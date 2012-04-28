@@ -3,6 +3,11 @@
 #include <linux/slab.h>
 #include "senorusb.h"
 
+#define IN_BUF_LEN  30
+#define IN_INTERVAL 1
+#define IN_EP       0x01
+#define OUT_EP      0x02
+
 #define MOTOR_SHOW_STORE(val)                                                                                      \
 ssize_t motor_store_ ## val (struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {   \
 	struct usb_interface *intf = to_usb_interface(dev);                                                            \
@@ -27,8 +32,9 @@ static struct usb_device_id id_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-DEVICE_ATTR(motor_l, 666, motor_show_l, motor_store_l);
-DEVICE_ATTR(motor_r, 666, motor_show_r, motor_store_r);
+DEVICE_ATTR(motor_l, S_IRUSR | S_IWUSR, motor_show_l, motor_store_l);
+DEVICE_ATTR(motor_r, S_IRUSR | S_IWUSR, motor_show_r, motor_store_r);
+//DEVICE_ATTR(gyro_yaw, S_IRUSR | S_IWUSR, gyro_show_yaw, NULL);
 
 static struct usb_driver driver_info = {
 	.name = "SenorRobot",
@@ -63,6 +69,8 @@ void __exit cleanup_module() {
 int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) {
 	int ret;
 	struct platform *robot;
+	struct urb *gyro_request;
+	int result;
 
 	printk("usb_probe()\n");
 	printk(" idVendor:  %04X\n", interface_to_usbdev(intf)->descriptor.idVendor);
@@ -86,7 +94,17 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 		robot = kmalloc(sizeof(struct platform), GFP_KERNEL);
 		robot->motor_l_out = 0;
 		robot->motor_r_out = 0;
+		robot->gyro_buffer = kmalloc(IN_BUF_LEN * sizeof(uint8_t), GFP_KERNEL);
 		usb_set_intfdata(intf, robot);
+
+		gyro_request = usb_alloc_urb(0, GFP_KERNEL);
+
+		usb_fill_int_urb(gyro_request, interface_to_usbdev(intf), usb_rcvintpipe(interface_to_usbdev(intf), IN_EP), robot->gyro_buffer, IN_BUF_LEN, &gyro_callback, robot, IN_INTERVAL);
+		result = usb_submit_urb(gyro_request, GFP_KERNEL);
+		if (result) {
+			printk(KERN_ERR "Error registering gyro urb (%d)", result);
+			result = -1;
+		}
 
 		return 0;
 	}
@@ -104,13 +122,38 @@ void usb_disconnect(struct usb_interface *intf) {
 	if (interface_to_usbdev(intf)->descriptor.idVendor == USB_ID_VENDOR &&
 	    interface_to_usbdev(intf)->descriptor.idProduct == USB_ID_PRODUCT)
 	{
+		struct platform *robot;
 		device_remove_file(&intf->dev, &dev_attr_motor_l);
 		device_remove_file(&intf->dev, &dev_attr_motor_r);
 
-		kfree(usb_get_intfdata(intf));
+		robot = usb_get_intfdata(intf);
+		kfree(robot->gyro_buffer);
+		kfree(robot);
 
 		printk("DISCONNECTED\n");
 		module_put(THIS_MODULE);
+	}
+}
+
+
+void gyro_callback(struct urb *urb) {
+	int result;
+	if (urb->status == 0) {
+		//struct usb_interface *intf = to_usb_interface(dev);
+		//struct platform *robot = usb_get_intfdata(intf);
+		//((char *)urb->transfer_buffer)[urb->actual_length] = '\0';
+		int32_t *gyro = urb->transfer_buffer;
+
+		printk(KERN_ERR "gyro urb (X:%d  Y:%d  Z:%d)\n", gyro[0], gyro[1], gyro[2]);
+	} else {
+		printk(KERN_ERR "Urb failed with: %d", urb->status);
+	}
+
+
+	result = usb_submit_urb(urb, GFP_KERNEL);
+	if (result) {
+		printk(KERN_ERR "Error reregistering gyro urb (%d)", result);
+		result = -1;
 	}
 }
 
@@ -132,7 +175,7 @@ size_t motor_store(struct device *dev, struct device_attribute *attr, struct pla
 	buf[1] = robot->motor_r_out;
 
 	request = usb_alloc_urb(0, GFP_KERNEL);
-	usb_fill_bulk_urb(request, usbdev, usb_sndbulkpipe(usbdev, 0x02), buf, 2, &urb_complete, buf);
+	usb_fill_bulk_urb(request, usbdev, usb_sndbulkpipe(usbdev, OUT_EP), buf, 2, &urb_complete, buf);
 
 	result = usb_submit_urb(request, GFP_KERNEL);
 	if (result) {
