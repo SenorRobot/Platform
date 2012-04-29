@@ -48,7 +48,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 DEVICE_ATTR(motor_l, S_IRUSR | S_IWUSR, motor_show_l, motor_store_l);
 DEVICE_ATTR(motor_r, S_IRUSR | S_IWUSR, motor_show_r, motor_store_r);
-DEVICE_ATTR(gyro_show_yaw, S_IRUSR | S_IWUSR, gyro_show_yaw, NULL);
+DEVICE_ATTR(gyro_yaw, S_IRUSR | S_IWUSR, gyro_show_yaw, NULL);
 
 static struct usb_driver driver_info = {
 	.name = "SenorRobot",
