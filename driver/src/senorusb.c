@@ -104,6 +104,9 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 		if (ret = device_create_file(&intf->dev, &dev_attr_motor_r), ret) {
 			printk("device_create_file(): %d\n", ret);
 		}
+		if (ret = device_create_file(&intf->dev, &dev_attr_gyro_yaw), ret) {
+			printk("device_create_file(): %d\n", ret);
+		}
 
 		robot = kmalloc(sizeof(struct platform), GFP_KERNEL);
 		robot->motor_l_out = 0;
