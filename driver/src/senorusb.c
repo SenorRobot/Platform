@@ -156,7 +156,7 @@ void usb_disconnect(struct usb_interface *intf) {
 void gyro_callback(struct urb *urb) {
 	int result;
 	if (urb->status == 0) {
-		if (urb->actual_length > 3*sizeof(int32_t)) {
+		if (urb->actual_length >= 3*sizeof(int32_t)) {
 			int32_t *gyro = urb->transfer_buffer;
 
 			struct platform *robot = urb->context;
