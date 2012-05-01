@@ -19,6 +19,8 @@ ssize_t motor_store_ ## val (struct device *dev, struct device_attribute *attr, 
 ssize_t motor_show_ ## val (struct device *dev, struct device_attribute *attr, char *buf) {                        \
 	struct usb_interface *intf = to_usb_interface(dev);                                                            \
 	struct platform *robot = usb_get_intfdata(intf);                                                               \
+	if (robot == NULL)                                                                                             \
+		return -1;                                                                                                 \
 	return scnprintf(buf, PAGE_SIZE, "%d", robot->motor_ ## val ## _out);                                          \
 }
 
@@ -98,6 +100,12 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 		try_module_get(THIS_MODULE);
 		printk("CONNECTED\n");
 
+		robot = kmalloc(sizeof(struct platform), GFP_KERNEL);
+		robot->motor_l_out = 0;
+		robot->motor_r_out = 0;
+		robot->gyro_buffer = kmalloc(IN_BUF_LEN * sizeof(uint8_t), GFP_KERNEL);
+		usb_set_intfdata(intf, robot);
+
 		if (ret = device_create_file(&intf->dev, &dev_attr_motor_l), ret) {
 			printk("device_create_file(): %d\n", ret);
 		}
@@ -107,12 +115,6 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 		if (ret = device_create_file(&intf->dev, &dev_attr_gyro_yaw), ret) {
 			printk("device_create_file(): %d\n", ret);
 		}
-
-		robot = kmalloc(sizeof(struct platform), GFP_KERNEL);
-		robot->motor_l_out = 0;
-		robot->motor_r_out = 0;
-		robot->gyro_buffer = kmalloc(IN_BUF_LEN * sizeof(uint8_t), GFP_KERNEL);
-		usb_set_intfdata(intf, robot);
 
 		gyro_request = usb_alloc_urb(0, GFP_KERNEL);
 
@@ -210,6 +212,27 @@ size_t motor_store(struct device *dev, struct device_attribute *attr, struct pla
 ssize_t gyro_show_yaw(struct device *dev, struct device_attribute *attr, char *buf) {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct platform *robot = usb_get_intfdata(intf);
+	if (robot == NULL)
+		return -1;
+
 	return scnprintf(buf, PAGE_SIZE, "%d", robot->gyro_z);
 }
 
+<<<<<<< Updated upstream
+=======
+ssize_t sonar_show(struct device *dev, struct device_attribute *attr, char *buf) {
+	int i;
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct platform *robot = usb_get_intfdata(intf);
+
+	if (robot == NULL)
+		return -1;
+
+	for (i = 0; i < SONAR_COUNT; i++) {
+		buf[i] = robot->sonars[i];
+	}
+	buf[i] = '\0';
+	return SONAR_COUNT + 1;
+}
+
+>>>>>>> Stashed changes
