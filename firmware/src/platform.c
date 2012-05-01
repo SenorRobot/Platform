@@ -8,27 +8,34 @@
 #include "motor.h"
 #include "spi.h"
 #include "gyro.h"
+#include "sonar.h"
 
 #define WRITE_RATE 10
 #define GYRO_READ_RATE 100
 #define GYRO_SCALE 1.332  // 1/1000 of a rad
-#define GYRO_CAL_Z 55
+#define GYRO_CAL_Z 25
+#define SONAR_CLOSE_THRESHOLD 8
+#define SONAR_FAR_THRESHOLD 20
 
 void setup_hardware();
 volatile bool send_readings;
 volatile int32_t acc_x;
 volatile int32_t acc_y;
 volatile int32_t acc_z;
+bool stopped;
 
 int main() {
 	motor_t *motor_l = NULL;
 	motor_t *motor_r = NULL;
+	sonar_t *sonar = NULL;
 	send_readings = false;
+	stopped = false;
 
 	setup_hardware();
 
 	motor_init(&motor_l, &PORTF, 6, 7, false);
 	motor_init(&motor_r, &PORTD, 2, 3, true);
+	sonar_init(&sonar);
 
 	spi_init();
 	while (!gyro_init());
@@ -39,6 +46,8 @@ int main() {
 	acc_y = 0;
 	acc_z = 0;
 
+	sonar_start_readings(sonar);
+
 	while (1) {
 		Endpoint_SelectEndpoint(OUT_EPNUM);
 		if (Endpoint_IsOUTReceived()) {
@@ -47,11 +56,36 @@ int main() {
 			Endpoint_ClearOUT();
 		}
 		if (send_readings) {
-			Endpoint_SelectEndpoint(IN_EPNUM);
 			send_readings = false;
+			if (!stopped)
+				LEDs_ToggleLEDs(LEDS_ALL_LEDS);
+
+			Endpoint_SelectEndpoint(IN_EPNUM);
+
 			Endpoint_Write_32_LE(acc_x);
 			Endpoint_Write_32_LE(acc_y);
 			Endpoint_Write_32_LE(acc_z);
+
+			bool cleared = true;
+			for (int i = 0; i < SONAR_COUNT; i++) {
+				uint8_t val = sonar_get_value(sonar, i);
+				if (val < SONAR_CLOSE_THRESHOLD && !stopped) {
+					motor_disable(motor_l);
+					motor_disable(motor_r);
+					stopped = true;
+				}
+
+				if (val < SONAR_FAR_THRESHOLD)
+					cleared = false;
+
+				Endpoint_Write_8(val);
+			}
+			if (stopped && cleared) {
+				motor_enable(motor_l);
+				motor_enable(motor_r);
+				stopped = false;
+			}
+
 			Endpoint_ClearIN();
 		}
 		USB_USBTask();

@@ -7,6 +7,7 @@
 #define IN_INTERVAL 1
 #define IN_EP       0x01
 #define OUT_EP      0x02
+#define SONAR_COUNT 6
 
 #define MOTOR_SHOW_STORE(val)                                                                                      \
 ssize_t motor_store_ ## val (struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {   \
@@ -29,13 +30,15 @@ struct platform {
 	int32_t gyro_x;
 	int32_t gyro_y;
 	int32_t gyro_z;
+	uint8_t sonars[SONAR_COUNT];
 };
 
-void gyro_callback(struct urb *urb);
+void int_callback(struct urb *urb);
 int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table);
 void usb_disconnect(struct usb_interface *intf);
 size_t motor_store(struct device *dev, struct device_attribute *attr, struct platform *robot);
 ssize_t gyro_show_yaw(struct device *dev, struct device_attribute *attr, char *buf);
+ssize_t sonar_show(struct device *dev, struct device_attribute *attr, char *buf);
 
 MOTOR_SHOW_STORE(l);
 MOTOR_SHOW_STORE(r);
@@ -49,6 +52,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 DEVICE_ATTR(motor_l, S_IRUSR | S_IWUSR, motor_show_l, motor_store_l);
 DEVICE_ATTR(motor_r, S_IRUSR | S_IWUSR, motor_show_r, motor_store_r);
 DEVICE_ATTR(gyro_yaw, S_IRUSR | S_IWUSR, gyro_show_yaw, NULL);
+DEVICE_ATTR(sonars, S_IRUSR | S_IWUSR, sonar_show, NULL);
 
 static struct usb_driver driver_info = {
 	.name = "SenorRobot",
@@ -98,15 +102,17 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 		try_module_get(THIS_MODULE);
 		printk("CONNECTED\n");
 
-		if (ret = device_create_file(&intf->dev, &dev_attr_motor_l), ret) {
+		if (ret = device_create_file(&intf->dev, &dev_attr_motor_l), ret)
 			printk("device_create_file(): %d\n", ret);
-		}
-		if (ret = device_create_file(&intf->dev, &dev_attr_motor_r), ret) {
+
+		if (ret = device_create_file(&intf->dev, &dev_attr_motor_r), ret)
 			printk("device_create_file(): %d\n", ret);
-		}
-		if (ret = device_create_file(&intf->dev, &dev_attr_gyro_yaw), ret) {
+
+		if (ret = device_create_file(&intf->dev, &dev_attr_gyro_yaw), ret)
 			printk("device_create_file(): %d\n", ret);
-		}
+
+		if (ret = device_create_file(&intf->dev, &dev_attr_sonars), ret)
+			printk("device_create_file(): %d\n", ret);
 
 		robot = kmalloc(sizeof(struct platform), GFP_KERNEL);
 		robot->motor_l_out = 0;
@@ -116,7 +122,7 @@ int usb_probe(struct usb_interface *intf, const struct usb_device_id *id_table) 
 
 		gyro_request = usb_alloc_urb(0, GFP_KERNEL);
 
-		usb_fill_int_urb(gyro_request, interface_to_usbdev(intf), usb_rcvintpipe(interface_to_usbdev(intf), IN_EP), robot->gyro_buffer, IN_BUF_LEN, &gyro_callback, robot, IN_INTERVAL);
+		usb_fill_int_urb(gyro_request, interface_to_usbdev(intf), usb_rcvintpipe(interface_to_usbdev(intf), IN_EP), robot->gyro_buffer, IN_BUF_LEN, &int_callback, robot, IN_INTERVAL);
 		result = usb_submit_urb(gyro_request, GFP_KERNEL);
 		if (result) {
 			printk(KERN_ERR "Error registering gyro urb (%d)", result);
@@ -153,16 +159,21 @@ void usb_disconnect(struct usb_interface *intf) {
 }
 
 
-void gyro_callback(struct urb *urb) {
+void int_callback(struct urb *urb) {
 	int result;
 	if (urb->status == 0) {
 		if (urb->actual_length >= 3*sizeof(int32_t)) {
 			int32_t *gyro = urb->transfer_buffer;
+			uint8_t *sonar = urb->transfer_buffer + 3*sizeof(int32_t);
+			int i;
 
 			struct platform *robot = urb->context;
 			robot->gyro_x = gyro[0];
 			robot->gyro_y = gyro[1];
 			robot->gyro_z = gyro[2];
+
+			for (i = 0; i < SONAR_COUNT; i++)
+				robot->sonars[i] = sonar[i];
 		}
 	} else {
 		printk(KERN_ERR "Urb failed with: %d", urb->status);
@@ -211,5 +222,17 @@ ssize_t gyro_show_yaw(struct device *dev, struct device_attribute *attr, char *b
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct platform *robot = usb_get_intfdata(intf);
 	return scnprintf(buf, PAGE_SIZE, "%d", robot->gyro_z);
+}
+
+ssize_t sonar_show(struct device *dev, struct device_attribute *attr, char *buf) {
+	int i;
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct platform *robot = usb_get_intfdata(intf);
+
+	for (i = 0; i < SONAR_COUNT; i++) {
+		buf[i] = robot->sonars[i];
+	}
+	buf[i] = '\0';
+	return SONAR_COUNT + 1;
 }
 

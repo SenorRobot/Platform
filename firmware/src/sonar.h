@@ -1,14 +1,16 @@
-#ifdef _SONAR_H_
+#ifndef _SONAR_H_
 #define _SONAR_H_
 
-#define SONAR_COUNT 5
+#include <stdint.h>
+
+#define SONAR_COUNT 1
 
 struct _sonar_t;
-typedef _sonar_t sonar_t;
+typedef struct _sonar_t sonar_t;
 
 void sonar_init(sonar_t **sonar);
-void take_readings(sonar_t *sonar);
-uint8_t get_sonar(sonar_t *sonar, uint8_t index);
+void sonar_start_readings(sonar_t *sonar);
+uint8_t sonar_get_value(sonar_t *sonar, uint8_t index);
 
 #endif
 

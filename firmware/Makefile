@@ -52,6 +52,7 @@ SRC = $(SRC_DIR)/$(TARGET).c          \
       $(SRC_DIR)/pwm.c                \
       $(SRC_DIR)/gyro.c               \
       $(SRC_DIR)/spi.c                \
+      $(SRC_DIR)/sonar.c              \
       $(LUFA_SRC_USB)                 \
       $(LUFA_SRC_USBCLASS)
 

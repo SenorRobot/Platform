@@ -12,13 +12,23 @@
 #include "motor.h"
 #include "pwm.h"
 
+typedef enum {
+	MOTOR_MODE_COAST    = 0b00,
+	MOTOR_MODE_FORWARD  = 0b01,
+	MOTOR_MODE_BACKWARD = 0b10,
+	MOTOR_MODE_BRAKE    = 0b11
+} motor_mode_t;
+
 struct _motor_t {
 	volatile uint8_t *cnt_port;   //motor control output port
 	char output_1_pin;
 	char output_2_pin;
 	motor_mode_t current_mode;
 	pwm_args_t *pwm;
+	bool enabled;
 };
+
+void motor_set_mode(motor_t *motor, motor_mode_t mode);
 
 /**
  * Set the motor speed
@@ -26,6 +36,9 @@ struct _motor_t {
  * single signed short from -127 to 127
  */
 void motor_set_speed(motor_t *motor, int8_t speed) {
+	if (!motor->enabled)
+		return;
+
 	if (speed == 0) {
 		motor_set_mode(motor, MOTOR_MODE_COAST);
 		pwm_set_duty(motor->pwm, 0);
@@ -73,5 +86,14 @@ void motor_init(motor_t **motor, volatile uint8_t *port, char output_1_pin, char
 	pwm_init(&tmotor->pwm, pwm_pin);
 
 	*motor = tmotor;
+}
+
+void motor_disable(motor_t *motor) {
+	motor_set_speed(motor, 0);
+	motor->enabled = false;
+}
+
+void motor_enable(motor_t *motor) {
+	motor->enabled = true;
 }
 
