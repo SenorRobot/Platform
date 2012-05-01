@@ -33,15 +33,14 @@ void sonar_start_readings(sonar_t *sonar) {
 	ADMUX = (1 << REFS0 |          // use Vcc for Vref
 	         muxmap[cur_index]);   // select the correct input pin
 
-	OCR4A  = F_CPU / 1024 / SONAR_READ_RATE / SONAR_COUNT;
+	OCR4A  = (uint8_t)(F_CPU / 1024UL / SONAR_READ_RATE / SONAR_COUNT);
 	TCCR4A = 0;
 	TCCR4B = (1 << WGM12 |         // CTC
 	          1 << COM3A1 |        // Clear on compare match
 	          0x05);               // Set the pre-scaler to 1024
 
-	ADCSRB = (1 << ADTS3 |   // set the auto trigger to timer 4 compare A
+	ADCSRB = (1 << ADTS3 |         // set the auto trigger to timer 4 compare A
 	          1 << ADTS0);
-	//ADCSRA |= (1 << ADSC);         // start the conversion
 }
 
 uint8_t sonar_get_value(sonar_t *sonar, uint8_t index) {

@@ -82,6 +82,7 @@ void motor_init(motor_t **motor, volatile uint8_t *port, char output_1_pin, char
 	*GET_DDR(port) |= (1 << output_1_pin);
 	*GET_DDR(port) |= (1 << output_2_pin);
 
+	motor_enable(tmotor);
 	motor_set_mode(tmotor, MOTOR_MODE_BRAKE);
 	pwm_init(&tmotor->pwm, pwm_pin);
 
