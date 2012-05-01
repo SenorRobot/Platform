@@ -13,7 +13,7 @@ struct _sonar_t {
 sonar_t *volatile cur_sonar;
 volatile uint8_t cur_index;
 
-static const int muxmap[SONAR_COUNT] = {0x00};//, 0x01, 0x04, 0x05, 0x06};
+static const int muxmap[SONAR_COUNT] = {0x00, 0x01, 0x04, 0x05, 0x23, 0x22};
 
 void sonar_init(sonar_t **sonar) {
 	*sonar = malloc(sizeof(sonar_t));
@@ -31,7 +31,7 @@ void sonar_start_readings(sonar_t *sonar) {
 	cur_index = 0;
 
 	ADMUX = (1 << REFS0 |          // use Vcc for Vref
-	         muxmap[cur_index]);   // select the correct input pin
+	         (muxmap[cur_index] & 0x1F));   // select the correct input pin
 
 	OCR4A  = (uint8_t)(F_CPU / 1024UL / SONAR_READ_RATE / SONAR_COUNT);
 	TCCR4A = 0;
@@ -40,7 +40,8 @@ void sonar_start_readings(sonar_t *sonar) {
 	          0x05);               // Set the pre-scaler to 1024
 
 	ADCSRB = (1 << ADTS3 |         // set the auto trigger to timer 4 compare A
-	          1 << ADTS0);
+	          1 << ADTS0 |
+	          ((muxmap[cur_index] >> 5) & 0x01) << MUX5);
 }
 
 uint8_t sonar_get_value(sonar_t *sonar, uint8_t index) {
@@ -53,7 +54,10 @@ ISR(ADC_vect, ISR_BLOCK) {
 
 	cur_index = (cur_index + 1) % SONAR_COUNT;
 	ADMUX = (1 << REFS0 |
-	         muxmap[cur_index]);   // select the correct input pin
-	ADCSRA |= (1 << ADSC);         // start the conversion
+	         (muxmap[cur_index] & 0x1F));   // select the correct input pin
+	ADCSRB = (1 << ADTS3 |                  // set the auto trigger to timer 4 compare A
+	          1 << ADTS0 |
+	          ((muxmap[cur_index] >> 5) & 0x01) << MUX5);
+	ADCSRA |= (1 << ADSC);                  // start the conversion
 }
 

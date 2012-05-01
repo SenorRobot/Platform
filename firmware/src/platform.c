@@ -13,7 +13,7 @@
 #define WRITE_RATE 10
 #define GYRO_READ_RATE 100
 #define GYRO_SCALE 1.332  // 1/1000 of a rad
-#define GYRO_CAL_Z 25
+#define GYRO_CAL_Z 7
 #define SONAR_CLOSE_THRESHOLD 8
 #define SONAR_FAR_THRESHOLD 20
 

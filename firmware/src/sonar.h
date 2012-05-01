@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define SONAR_COUNT 1
+#define SONAR_COUNT 6
 
 struct _sonar_t;
 typedef struct _sonar_t sonar_t;
